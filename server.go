@@ -6,10 +6,12 @@ import (
 	"net/http"
 
 	"github.com/julienschmidt/httprouter"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
 type server struct {
-	router *httprouter.Router
+	router   *httprouter.Router
+	dbClient *mongo.Client
 }
 
 func crashHandler(w http.ResponseWriter, r *http.Request, err interface{}) {
