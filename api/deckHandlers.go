@@ -27,7 +27,7 @@ type CreateDeckResponseBody struct {
 }
 
 type GetDeckResponseBody struct {
-	DeckId    string        `json:"deckId"`
+	DeckId    string        `json:"deck_id"`
 	Shuffled  bool          `json:"shuffled"`
 	Remaining int           `json:"remaining"`
 	Cards     deck.DeckJSON `json:"cards"`
