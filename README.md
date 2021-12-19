@@ -10,15 +10,15 @@ REST API to create and interact with decks of playing cards.
  2. Clone the repo.
  3. Setup and run a MongoDB instance locally. Either go through the manual setup or use the mongo Docker image
  ```docker run --name mongo -d  -p <port>:<port> mongo```
- Replace `<port>` with the port number you need
+ Replace `<port>` with the port number you need.
  4. Copy the given `env_sample` file to new `.env` files
 	```cp env_sample .env```
-	```cp env_sample test.env``` for integration test env
+	```cp env_sample test.env``` for integration test env.
  5. Replace the values in `.env` and `test.env` with the appropriate database configuration values.
- 6: Either run directly using ```go run .```
+ 6. Either run directly using ```go run .```
 	or build and run using ```go build . && ./cards```
-7. Run all unit tests using `go test ./...`
-8. Run integration tests using `go test -tags=integration`
+ 7. Run all unit tests using `go test ./...`
+ 8. Run integration tests using `go test -tags=integration`
 
 ## API
 ### 1. Create new Deck

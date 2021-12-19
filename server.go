@@ -15,7 +15,7 @@ type server struct {
 }
 
 func crashHandler(w http.ResponseWriter, r *http.Request, err interface{}) {
-	log.Println(r.URL.Path, err)
+	log.Println(r.Method, r.URL.Path, err)
 	w.WriteHeader(http.StatusInternalServerError)
 	fmt.Fprintf(w, "Internal Server Error\n")
 }
@@ -25,7 +25,7 @@ func Status(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 }
 
 func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	log.Println(r.URL.Path)
+	log.Println(r.Method, r.URL.Path)
 	s.router.ServeHTTP(w, r)
 }
 
