@@ -56,7 +56,6 @@ func TestHandleCreateDeck(t *testing.T) {
 		{shuffle: true, customDeck: false, wantedCards: []string{}, expectedNumCards: 52},
 		{shuffle: false, customDeck: true, wantedCards: []string{"AS", "QS", "2H", "7D", "4C"}, expectedNumCards: 5},
 		{shuffle: true, customDeck: true, wantedCards: []string{"AS", "QS", "2H", "7D", "4C"}, expectedNumCards: 5},
-		{shuffle: true, customDeck: true, wantedCards: []string{}, expectedNumCards: 0},
 	}
 
 	for _, test := range tests {
@@ -80,6 +79,24 @@ func TestHandleCreateDeck(t *testing.T) {
 		}
 	}
 
+}
+
+func TestHandleCreateDeckNoWantedCardsErr(t *testing.T) {
+	mockParams := httprouter.Params{}
+	mockCtx := context.TODO()
+	mdc.mockInsertDeckFn = func(ctx context.Context, d database.DeckModel) error {
+		return nil
+	}
+	mockBody, _ := json.Marshal(CreateDeckRequestBody{Shuffle: false, CustomDeck: true, WantedCards: []string{}})
+	req := httptest.NewRequest("POST", "http://www.test.com", bytes.NewReader(mockBody))
+	expectedErr := ApiError{Message: "List of wanted cards must be provided for custom deck"}
+	_, responseCode, err := HandleCreateDeck(req, mockParams, &mdc, mockCtx)
+	if !cmp.Equal(err, expectedErr) {
+		t.Errorf("Failed for no wanted cards given error case: expected error to be %v, got %v", expectedErr, err)
+	}
+	if responseCode != http.StatusBadRequest {
+		t.Errorf("Failed for no wanted cards given error case: expected response code to be %d, got %d", http.StatusBadRequest, responseCode)
+	}
 }
 
 func TestHandleCreateDeckDbError(t *testing.T) {
@@ -123,7 +140,7 @@ func TestHandleCreateDeckBadRequest(t *testing.T) {
 }
 
 func TestHandleGetDeck(t *testing.T) {
-	mockParams := httprouter.Params{}
+	mockParams := httprouter.Params{{Key: "uuid", Value: "test-uuid-123"}}
 	mockCtx := context.TODO()
 	mockResult := database.DeckModel{
 		UUID:     "test-uuid-123",
@@ -156,7 +173,7 @@ func TestHandleGetDeck(t *testing.T) {
 }
 
 func TestHandleGetDeckNotFound(t *testing.T) {
-	mockParams := httprouter.Params{}
+	mockParams := httprouter.Params{{Key: "uuid", Value: "test-uuid-123"}}
 	mockCtx := context.TODO()
 	mdc := mockDeckCRUDOperator{}
 	mdc.mockFindDeckByUUID = func(ctx context.Context, uuid string) (database.DeckModel, error) {
@@ -175,7 +192,7 @@ func TestHandleGetDeckNotFound(t *testing.T) {
 }
 
 func TestHandleGetDeckDbError(t *testing.T) {
-	mockParams := httprouter.Params{}
+	mockParams := httprouter.Params{{Key: "uuid", Value: "test-uuid-123"}}
 	mockCtx := context.TODO()
 	mdc := mockDeckCRUDOperator{}
 	mdc.mockFindDeckByUUID = func(ctx context.Context, uuid string) (database.DeckModel, error) {
@@ -194,7 +211,7 @@ func TestHandleGetDeckDbError(t *testing.T) {
 }
 
 func TestHandleDrawCards(t *testing.T) {
-	mockParams := httprouter.Params{}
+	mockParams := httprouter.Params{{Key: "uuid", Value: "test-uuid-123"}}
 	mockCtx := context.TODO()
 	mockResult := database.DeckModel{
 		UUID:     "test-uuid-123",
@@ -212,8 +229,8 @@ func TestHandleDrawCards(t *testing.T) {
 	mdc.mockUpdateDeckByUUID = func(ctx context.Context, uuid string, filterQuery bson.D) error {
 		return nil
 	}
-	mockBody, _ := json.Marshal(DrawCardsRequestBody{DeckUUID: "test-uuid-123", NumberOfCards: 2})
-	req := httptest.NewRequest("POST", "http://www.test.com", bytes.NewReader(mockBody))
+	mockBody, _ := json.Marshal(DrawCardsRequestBody{NumberOfCards: 2})
+	req := httptest.NewRequest("PATCH", "http://www.test.com", bytes.NewReader(mockBody))
 	expectedResponse := DrawCardsResponseBody{
 		Cards: deck.Deck{{Value: deck.Ace, Suit: deck.Spades}, {Value: deck.Three, Suit: deck.Clubs}}.ToDeckJSON(),
 	}
@@ -230,7 +247,7 @@ func TestHandleDrawCards(t *testing.T) {
 }
 
 func TestHandleDrawCardsSizeExceededError(t *testing.T) {
-	mockParams := httprouter.Params{}
+	mockParams := httprouter.Params{{Key: "uuid", Value: "test-uuid-1234"}}
 	mockCtx := context.TODO()
 	mdc := mockDeckCRUDOperator{}
 	mockResult := database.DeckModel{
@@ -248,8 +265,8 @@ func TestHandleDrawCardsSizeExceededError(t *testing.T) {
 	mdc.mockUpdateDeckByUUID = func(ctx context.Context, uuid string, filterQuery bson.D) error {
 		return errors.New("test update error")
 	}
-	mockBody, _ := json.Marshal(DrawCardsRequestBody{DeckUUID: "test-uuid-123", NumberOfCards: 4})
-	req := httptest.NewRequest("POST", "http://www.test.com", bytes.NewReader(mockBody))
+	mockBody, _ := json.Marshal(DrawCardsRequestBody{NumberOfCards: 4})
+	req := httptest.NewRequest("PATCH", "http://www.test.com", bytes.NewReader(mockBody))
 	expectedErr := ApiError{Message: "Requested number of cards is greater than the cards remaining in the deck"}
 	_, responseCode, err := HandleDrawCards(req, mockParams, &mdc, mockCtx)
 	if !cmp.Equal(err, expectedErr) {
@@ -261,7 +278,7 @@ func TestHandleDrawCardsSizeExceededError(t *testing.T) {
 }
 
 func TestHandleDrawCardsDeckNotFound(t *testing.T) {
-	mockParams := httprouter.Params{}
+	mockParams := httprouter.Params{{Key: "uuid", Value: "test-uuid-123"}}
 	mockCtx := context.TODO()
 	mdc := mockDeckCRUDOperator{}
 	mdc.mockFindDeckByUUID = func(ctx context.Context, uuid string) (database.DeckModel, error) {
@@ -270,8 +287,8 @@ func TestHandleDrawCardsDeckNotFound(t *testing.T) {
 	mdc.mockUpdateDeckByUUID = func(ctx context.Context, uuid string, filterQuery bson.D) error {
 		return nil
 	}
-	mockBody, _ := json.Marshal(DrawCardsRequestBody{DeckUUID: "test-uuid-123", NumberOfCards: 2})
-	req := httptest.NewRequest("POST", "http://www.test.com", bytes.NewReader(mockBody))
+	mockBody, _ := json.Marshal(DrawCardsRequestBody{NumberOfCards: 2})
+	req := httptest.NewRequest("PATCH", "http://www.test.com", bytes.NewReader(mockBody))
 	expectedErr := ApiError{Message: "Deck with this id does not exist"}
 	_, responseCode, err := HandleDrawCards(req, mockParams, &mdc, mockCtx)
 	if !cmp.Equal(err, expectedErr) {
@@ -283,7 +300,7 @@ func TestHandleDrawCardsDeckNotFound(t *testing.T) {
 }
 
 func TestHandleDrawCardsDbReadError(t *testing.T) {
-	mockParams := httprouter.Params{}
+	mockParams := httprouter.Params{{Key: "uuid", Value: "test-uuid-123"}}
 	mockCtx := context.TODO()
 	mdc := mockDeckCRUDOperator{}
 	mdc.mockFindDeckByUUID = func(ctx context.Context, uuid string) (database.DeckModel, error) {
@@ -292,8 +309,8 @@ func TestHandleDrawCardsDbReadError(t *testing.T) {
 	mdc.mockUpdateDeckByUUID = func(ctx context.Context, uuid string, filterQuery bson.D) error {
 		return nil
 	}
-	mockBody, _ := json.Marshal(DrawCardsRequestBody{DeckUUID: "test-uuid-123", NumberOfCards: 2})
-	req := httptest.NewRequest("POST", "http://www.test.com", bytes.NewReader(mockBody))
+	mockBody, _ := json.Marshal(DrawCardsRequestBody{NumberOfCards: 2})
+	req := httptest.NewRequest("PATCH", "http://www.test.com", bytes.NewReader(mockBody))
 	expectedErr := ApiError{Message: "Internal Server Error"}
 	_, responseCode, err := HandleDrawCards(req, mockParams, &mdc, mockCtx)
 	if !cmp.Equal(err, expectedErr) {
@@ -305,7 +322,7 @@ func TestHandleDrawCardsDbReadError(t *testing.T) {
 }
 
 func TestHandleDrawCardsDbUpdateError(t *testing.T) {
-	mockParams := httprouter.Params{}
+	mockParams := httprouter.Params{{Key: "uuid", Value: "test-uuid-123"}}
 	mockCtx := context.TODO()
 	mdc := mockDeckCRUDOperator{}
 	mockResult := database.DeckModel{
@@ -323,8 +340,8 @@ func TestHandleDrawCardsDbUpdateError(t *testing.T) {
 	mdc.mockUpdateDeckByUUID = func(ctx context.Context, uuid string, filterQuery bson.D) error {
 		return errors.New("test update error")
 	}
-	mockBody, _ := json.Marshal(DrawCardsRequestBody{DeckUUID: "test-uuid-123", NumberOfCards: 2})
-	req := httptest.NewRequest("POST", "http://www.test.com", bytes.NewReader(mockBody))
+	mockBody, _ := json.Marshal(DrawCardsRequestBody{NumberOfCards: 2})
+	req := httptest.NewRequest("PATCH", "http://www.test.com", bytes.NewReader(mockBody))
 	expectedErr := ApiError{Message: "Internal Server Error"}
 	_, responseCode, err := HandleDrawCards(req, mockParams, &mdc, mockCtx)
 	if !cmp.Equal(err, expectedErr) {

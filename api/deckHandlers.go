@@ -16,9 +16,9 @@ import (
 )
 
 type CreateDeckRequestBody struct {
-	Shuffle     bool
-	CustomDeck  bool
-	WantedCards []string
+	Shuffle     bool     `json:"shuffle"`
+	CustomDeck  bool     `json:"customDeck"`
+	WantedCards []string `json:"wantedCards"`
 }
 
 type CreateDeckResponseBody struct {
@@ -35,8 +35,7 @@ type GetDeckResponseBody struct {
 }
 
 type DrawCardsRequestBody struct {
-	DeckUUID      string
-	NumberOfCards int
+	NumberOfCards int `json:"numberOfCards"`
 }
 
 type DrawCardsResponseBody struct {
@@ -60,6 +59,9 @@ func HandleCreateDeck(r *http.Request, ps httprouter.Params, dc database.DeckCRU
 	if err != nil {
 		log.Println("Error parsing request body", err)
 		return responseBody, http.StatusBadRequest, ApiError{Message: "Request body is malformed"}
+	}
+	if reqBody.CustomDeck && len(reqBody.WantedCards) == 0 {
+		return responseBody, http.StatusBadRequest, ApiError{Message: "List of wanted cards must be provided for custom deck"}
 	}
 
 	deckId := uuid.NewString()
@@ -109,14 +111,14 @@ func HandleDrawCards(r *http.Request, ps httprouter.Params, dc database.DeckCRUD
 		responseBody DrawCardsResponseBody
 		resultDeck   db.DeckModel
 	)
-
+	reqUUID := ps.ByName("uuid")
 	err := json.NewDecoder(r.Body).Decode(&reqBody)
 	if err != nil {
 		log.Println("Error parsing request body", err)
 		return responseBody, http.StatusBadRequest, ApiError{Message: "Request body is malformed"}
 	}
 
-	resultDeck, err = dc.FindDeckByUUID(ctx, reqBody.DeckUUID)
+	resultDeck, err = dc.FindDeckByUUID(ctx, reqUUID)
 	if err == mongo.ErrNoDocuments {
 		return responseBody, http.StatusNotFound, ApiError{Message: "Deck with this id does not exist"}
 	} else if err != nil {
@@ -129,7 +131,7 @@ func HandleDrawCards(r *http.Request, ps httprouter.Params, dc database.DeckCRUD
 		return responseBody, http.StatusBadRequest, ApiError{Message: err.Error()}
 	}
 	updateQuery := bson.D{{Key: "$set", Value: bson.D{{Key: "cards", Value: remainingCards}}}}
-	err = dc.UpdateDeckByUUID(ctx, reqBody.DeckUUID, updateQuery)
+	err = dc.UpdateDeckByUUID(ctx, reqUUID, updateQuery)
 	if err != nil {
 		log.Println("Error occurred while updating document in db.", err)
 		return responseBody, http.StatusInternalServerError, ApiError{Message: "Internal Server Error"}

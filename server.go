@@ -34,6 +34,6 @@ func (s *server) initRouter() {
 	s.router.GET("/status", Status)
 	s.router.POST("/deck", s.handleCreateDeck)
 	s.router.GET("/deck/:uuid", s.handleGetDeck)
-	s.router.POST("/draw", s.handleDrawCards)
+	s.router.PATCH("/draw/:uuid", s.handleDrawCards)
 
 }
