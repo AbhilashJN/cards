@@ -4,8 +4,11 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
+	"log"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 	"time"
 
@@ -13,19 +16,29 @@ import (
 	"github.com/AbhilashJN/cards/database"
 	"github.com/AbhilashJN/cards/deck"
 	"github.com/google/go-cmp/cmp"
+	"github.com/joho/godotenv"
 	"github.com/julienschmidt/httprouter"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 func TestCreateDeckIntegration(t *testing.T) {
-	client, _ := mongo.NewClient(options.Client().ApplyURI("mongodb://localhost:27017"))
+	err := godotenv.Load("test.env")
+	if err != nil {
+		log.Fatal("Error loading .env file")
+	}
+	dbProtocol := os.Getenv("DB_PROTOCOL")
+	dbHost := os.Getenv("DB_HOST")
+	dbPort := os.Getenv("DB_PORT")
+	dbName := os.Getenv("DB_NAME")
+	dbConnectionString := fmt.Sprintf("%s://%s:%s", dbProtocol, dbHost, dbPort)
+	client, _ := mongo.NewClient(options.Client().ApplyURI(dbConnectionString))
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 	client.Connect(ctx)
 	defer client.Disconnect(ctx)
 
-	dbClient := client.Database("cardsdb_test")
+	dbClient := client.Database(dbName)
 	s := &server{
 		router:   httprouter.New(),
 		dbClient: dbClient,
@@ -56,12 +69,22 @@ func TestCreateDeckIntegration(t *testing.T) {
 }
 
 func TestCreateDeckIntegrationErrorCase(t *testing.T) {
-	client, _ := mongo.NewClient(options.Client().ApplyURI("mongodb://localhost:27017"))
+	err := godotenv.Load("test.env")
+	if err != nil {
+		log.Fatal("Error loading .env file")
+	}
+	dbProtocol := os.Getenv("DB_PROTOCOL")
+	dbHost := os.Getenv("DB_HOST")
+	dbPort := os.Getenv("DB_PORT")
+	dbName := os.Getenv("DB_NAME")
+	dbConnectionString := fmt.Sprintf("%s://%s:%s", dbProtocol, dbHost, dbPort)
+	client, _ := mongo.NewClient(options.Client().ApplyURI(dbConnectionString))
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 	client.Connect(ctx)
 	defer client.Disconnect(ctx)
-	dbClient := client.Database("cardsdb_test")
+
+	dbClient := client.Database(dbName)
 	s := &server{
 		router:   httprouter.New(),
 		dbClient: dbClient,
@@ -85,18 +108,28 @@ func TestCreateDeckIntegrationErrorCase(t *testing.T) {
 }
 
 func TestGetDeckIntegration(t *testing.T) {
-	client, _ := mongo.NewClient(options.Client().ApplyURI("mongodb://localhost:27017"))
+	err := godotenv.Load("test.env")
+	if err != nil {
+		log.Fatal("Error loading .env file")
+	}
+	dbProtocol := os.Getenv("DB_PROTOCOL")
+	dbHost := os.Getenv("DB_HOST")
+	dbPort := os.Getenv("DB_PORT")
+	dbName := os.Getenv("DB_NAME")
+	dbConnectionString := fmt.Sprintf("%s://%s:%s", dbProtocol, dbHost, dbPort)
+	client, _ := mongo.NewClient(options.Client().ApplyURI(dbConnectionString))
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 	client.Connect(ctx)
 	defer client.Disconnect(ctx)
 
-	dbClient := client.Database("cardsdb_test")
+	dbClient := client.Database(dbName)
 	s := &server{
 		router:   httprouter.New(),
 		dbClient: dbClient,
 	}
 	s.initRouter()
+
 	mockDeck, _ := deck.New(&deck.NewDeckOpts{Shuffle: false, CustomDeck: false})
 	deckItem := database.DeckModel{
 		UUID:     "test-uuid-12345",
@@ -130,18 +163,28 @@ func TestGetDeckIntegration(t *testing.T) {
 }
 
 func TestGetDeckIntegrationErrorCase(t *testing.T) {
-	client, _ := mongo.NewClient(options.Client().ApplyURI("mongodb://localhost:27017"))
+	err := godotenv.Load("test.env")
+	if err != nil {
+		log.Fatal("Error loading .env file")
+	}
+	dbProtocol := os.Getenv("DB_PROTOCOL")
+	dbHost := os.Getenv("DB_HOST")
+	dbPort := os.Getenv("DB_PORT")
+	dbName := os.Getenv("DB_NAME")
+	dbConnectionString := fmt.Sprintf("%s://%s:%s", dbProtocol, dbHost, dbPort)
+	client, _ := mongo.NewClient(options.Client().ApplyURI(dbConnectionString))
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 	client.Connect(ctx)
 	defer client.Disconnect(ctx)
 
-	dbClient := client.Database("cardsdb_test")
+	dbClient := client.Database(dbName)
 	s := &server{
 		router:   httprouter.New(),
 		dbClient: dbClient,
 	}
 	s.initRouter()
+
 	mockDeck, _ := deck.New(&deck.NewDeckOpts{Shuffle: false, CustomDeck: false})
 	deckItem := database.DeckModel{
 		UUID:     "test-uuid-12345",
@@ -167,18 +210,28 @@ func TestGetDeckIntegrationErrorCase(t *testing.T) {
 }
 
 func TestDrawCardsIntegration(t *testing.T) {
-	client, _ := mongo.NewClient(options.Client().ApplyURI("mongodb://localhost:27017"))
+	err := godotenv.Load("test.env")
+	if err != nil {
+		log.Fatal("Error loading .env file")
+	}
+	dbProtocol := os.Getenv("DB_PROTOCOL")
+	dbHost := os.Getenv("DB_HOST")
+	dbPort := os.Getenv("DB_PORT")
+	dbName := os.Getenv("DB_NAME")
+	dbConnectionString := fmt.Sprintf("%s://%s:%s", dbProtocol, dbHost, dbPort)
+	client, _ := mongo.NewClient(options.Client().ApplyURI(dbConnectionString))
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 	client.Connect(ctx)
 	defer client.Disconnect(ctx)
 
-	dbClient := client.Database("cardsdb_test")
+	dbClient := client.Database(dbName)
 	s := &server{
 		router:   httprouter.New(),
 		dbClient: dbClient,
 	}
 	s.initRouter()
+
 	mockDeck, _ := deck.New(&deck.NewDeckOpts{Shuffle: false, CustomDeck: false})
 	deckItem := database.DeckModel{
 		UUID:     "test-uuid-12345",
@@ -208,18 +261,28 @@ func TestDrawCardsIntegration(t *testing.T) {
 }
 
 func TestDrawCardsIntegrationErrorCase(t *testing.T) {
-	client, _ := mongo.NewClient(options.Client().ApplyURI("mongodb://localhost:27017"))
+	err := godotenv.Load("test.env")
+	if err != nil {
+		log.Fatal("Error loading .env file")
+	}
+	dbProtocol := os.Getenv("DB_PROTOCOL")
+	dbHost := os.Getenv("DB_HOST")
+	dbPort := os.Getenv("DB_PORT")
+	dbName := os.Getenv("DB_NAME")
+	dbConnectionString := fmt.Sprintf("%s://%s:%s", dbProtocol, dbHost, dbPort)
+	client, _ := mongo.NewClient(options.Client().ApplyURI(dbConnectionString))
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 	client.Connect(ctx)
 	defer client.Disconnect(ctx)
 
-	dbClient := client.Database("cardsdb_test")
+	dbClient := client.Database(dbName)
 	s := &server{
 		router:   httprouter.New(),
 		dbClient: dbClient,
 	}
 	s.initRouter()
+
 	mockDeck, _ := deck.New(&deck.NewDeckOpts{Shuffle: false, CustomDeck: false})
 	deckItem := database.DeckModel{
 		UUID:     "test-uuid-12345",
