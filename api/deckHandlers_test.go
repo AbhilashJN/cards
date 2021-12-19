@@ -60,7 +60,7 @@ func TestHandleCreateDeck(t *testing.T) {
 
 	for _, test := range tests {
 		mockBody, _ := json.Marshal(CreateDeckRequestBody{Shuffle: test.shuffle, CustomDeck: test.customDeck, WantedCards: test.wantedCards})
-		req := httptest.NewRequest("POST", "http://www.test.com", bytes.NewReader(mockBody))
+		req := httptest.NewRequest("POST", "/deck", bytes.NewReader(mockBody))
 		responseBody, responseCode, err := HandleCreateDeck(req, mockParams, &mdc, mockCtx)
 		if err != nil {
 			t.Errorf("Failed for success case: expected err to be %v, got %v", nil, err)
@@ -88,7 +88,7 @@ func TestHandleCreateDeckNoWantedCardsErr(t *testing.T) {
 		return nil
 	}
 	mockBody, _ := json.Marshal(CreateDeckRequestBody{Shuffle: false, CustomDeck: true, WantedCards: []string{}})
-	req := httptest.NewRequest("POST", "http://www.test.com", bytes.NewReader(mockBody))
+	req := httptest.NewRequest("POST", "/deck", bytes.NewReader(mockBody))
 	expectedErr := ApiError{Message: "List of wanted cards must be provided for custom deck"}
 	_, responseCode, err := HandleCreateDeck(req, mockParams, &mdc, mockCtx)
 	if !cmp.Equal(err, expectedErr) {
@@ -108,7 +108,7 @@ func TestHandleCreateDeckDbError(t *testing.T) {
 	}
 
 	mockBody, _ := json.Marshal(CreateDeckRequestBody{Shuffle: false, CustomDeck: false, WantedCards: []string{}})
-	req := httptest.NewRequest("POST", "http://www.test.com", bytes.NewReader(mockBody))
+	req := httptest.NewRequest("POST", "/deck", bytes.NewReader(mockBody))
 	expectedErr := ApiError{Message: "Internal Server Error"}
 	_, responseCode, err := HandleCreateDeck(req, mockParams, &mdc, mockCtx)
 	if !cmp.Equal(err, expectedErr) {
@@ -128,7 +128,7 @@ func TestHandleCreateDeckBadRequest(t *testing.T) {
 	}
 
 	mockBody, _ := json.Marshal(CreateDeckRequestBody{Shuffle: false, CustomDeck: false, WantedCards: []string{}})
-	req := httptest.NewRequest("POST", "http://www.test.com", bytes.NewReader(mockBody[:len(mockBody)-2]))
+	req := httptest.NewRequest("POST", "/deck", bytes.NewReader(mockBody[:len(mockBody)-2]))
 	expectedErr := ApiError{Message: "Request body is malformed"}
 	_, responseCode, err := HandleCreateDeck(req, mockParams, &mdc, mockCtx)
 	if !cmp.Equal(err, expectedErr) {
@@ -152,7 +152,7 @@ func TestHandleGetDeck(t *testing.T) {
 		return mockResult, nil
 	}
 
-	req := httptest.NewRequest("GET", "http://www.test.com", bytes.NewReader([]byte{}))
+	req := httptest.NewRequest("GET", "/deck/test-uuid-123", bytes.NewReader([]byte{}))
 	expectedResponse := GetDeckResponseBody{
 		DeckId:    "test-uuid-123",
 		Shuffled:  false,
@@ -180,7 +180,7 @@ func TestHandleGetDeckNotFound(t *testing.T) {
 		return database.DeckModel{}, mongo.ErrNoDocuments
 	}
 
-	req := httptest.NewRequest("GET", "http://www.test.com", bytes.NewReader([]byte{}))
+	req := httptest.NewRequest("GET", "/deck/test-uuid-123", bytes.NewReader([]byte{}))
 	expectedErr := ApiError{Message: "Deck with this id does not exist"}
 	_, responseCode, err := HandleGetDeck(req, mockParams, &mdc, mockCtx)
 	if !cmp.Equal(err, expectedErr) {
@@ -199,7 +199,7 @@ func TestHandleGetDeckDbError(t *testing.T) {
 		return database.DeckModel{}, errors.New("test error 456")
 	}
 
-	req := httptest.NewRequest("GET", "http://www.test.com", bytes.NewReader([]byte{}))
+	req := httptest.NewRequest("GET", "/deck/test-uuid-123", bytes.NewReader([]byte{}))
 	expectedErr := ApiError{Message: "Internal Server Error"}
 	_, responseCode, err := HandleGetDeck(req, mockParams, &mdc, mockCtx)
 	if !cmp.Equal(err, expectedErr) {
@@ -230,7 +230,7 @@ func TestHandleDrawCards(t *testing.T) {
 		return nil
 	}
 	mockBody, _ := json.Marshal(DrawCardsRequestBody{NumberOfCards: 2})
-	req := httptest.NewRequest("PATCH", "http://www.test.com", bytes.NewReader(mockBody))
+	req := httptest.NewRequest("PATCH", "/deck/test-uuid-123", bytes.NewReader(mockBody))
 	expectedResponse := DrawCardsResponseBody{
 		Cards: deck.Deck{{Value: deck.Ace, Suit: deck.Spades}, {Value: deck.Three, Suit: deck.Clubs}}.ToDeckJSON(),
 	}
@@ -266,7 +266,7 @@ func TestHandleDrawCardsSizeExceededError(t *testing.T) {
 		return errors.New("test update error")
 	}
 	mockBody, _ := json.Marshal(DrawCardsRequestBody{NumberOfCards: 4})
-	req := httptest.NewRequest("PATCH", "http://www.test.com", bytes.NewReader(mockBody))
+	req := httptest.NewRequest("PATCH", "/deck/test-uuid-123", bytes.NewReader(mockBody))
 	expectedErr := ApiError{Message: "Requested number of cards is greater than the cards remaining in the deck"}
 	_, responseCode, err := HandleDrawCards(req, mockParams, &mdc, mockCtx)
 	if !cmp.Equal(err, expectedErr) {
@@ -297,7 +297,7 @@ func TestHandleDrawCardsNumberNotGivenError(t *testing.T) {
 		return errors.New("test update error")
 	}
 	mockBody, _ := json.Marshal(struct{}{})
-	req := httptest.NewRequest("PATCH", "http://www.test.com", bytes.NewReader(mockBody))
+	req := httptest.NewRequest("PATCH", "/deck/test-uuid-123", bytes.NewReader(mockBody))
 	expectedErr := ApiError{Message: "Number of cards must be specified and be greater than 0"}
 	_, responseCode, err := HandleDrawCards(req, mockParams, &mdc, mockCtx)
 	if !cmp.Equal(err, expectedErr) {
@@ -319,7 +319,7 @@ func TestHandleDrawCardsDeckNotFound(t *testing.T) {
 		return nil
 	}
 	mockBody, _ := json.Marshal(DrawCardsRequestBody{NumberOfCards: 2})
-	req := httptest.NewRequest("PATCH", "http://www.test.com", bytes.NewReader(mockBody))
+	req := httptest.NewRequest("PATCH", "/deck/test-uuid-123", bytes.NewReader(mockBody))
 	expectedErr := ApiError{Message: "Deck with this id does not exist"}
 	_, responseCode, err := HandleDrawCards(req, mockParams, &mdc, mockCtx)
 	if !cmp.Equal(err, expectedErr) {
@@ -341,7 +341,7 @@ func TestHandleDrawCardsDbReadError(t *testing.T) {
 		return nil
 	}
 	mockBody, _ := json.Marshal(DrawCardsRequestBody{NumberOfCards: 2})
-	req := httptest.NewRequest("PATCH", "http://www.test.com", bytes.NewReader(mockBody))
+	req := httptest.NewRequest("PATCH", "/deck/test-uuid-123", bytes.NewReader(mockBody))
 	expectedErr := ApiError{Message: "Internal Server Error"}
 	_, responseCode, err := HandleDrawCards(req, mockParams, &mdc, mockCtx)
 	if !cmp.Equal(err, expectedErr) {
@@ -372,7 +372,7 @@ func TestHandleDrawCardsDbUpdateError(t *testing.T) {
 		return errors.New("test update error")
 	}
 	mockBody, _ := json.Marshal(DrawCardsRequestBody{NumberOfCards: 2})
-	req := httptest.NewRequest("PATCH", "http://www.test.com", bytes.NewReader(mockBody))
+	req := httptest.NewRequest("PATCH", "/deck/test-uuid-123", bytes.NewReader(mockBody))
 	expectedErr := ApiError{Message: "Internal Server Error"}
 	_, responseCode, err := HandleDrawCards(req, mockParams, &mdc, mockCtx)
 	if !cmp.Equal(err, expectedErr) {

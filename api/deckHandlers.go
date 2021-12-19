@@ -6,7 +6,6 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/AbhilashJN/cards/database"
 	db "github.com/AbhilashJN/cards/database"
 	"github.com/AbhilashJN/cards/deck"
 	"github.com/google/uuid"
@@ -39,7 +38,7 @@ type DrawCardsRequestBody struct {
 }
 
 type DrawCardsResponseBody struct {
-	Cards []deck.CardJSON `json:"cards"`
+	Cards deck.DeckJSON `json:"cards"`
 }
 
 type ApiError struct {
@@ -50,7 +49,7 @@ func (e ApiError) Error() string {
 	return e.Message
 }
 
-func HandleCreateDeck(r *http.Request, ps httprouter.Params, dc database.DeckCRUDer, ctx context.Context) (CreateDeckResponseBody, int, error) {
+func HandleCreateDeck(r *http.Request, ps httprouter.Params, dc db.DeckCRUDer, ctx context.Context) (CreateDeckResponseBody, int, error) {
 	var (
 		reqBody      CreateDeckRequestBody
 		responseBody CreateDeckResponseBody
@@ -84,7 +83,7 @@ func HandleCreateDeck(r *http.Request, ps httprouter.Params, dc database.DeckCRU
 	return responseBody, http.StatusCreated, nil
 }
 
-func HandleGetDeck(r *http.Request, ps httprouter.Params, dc database.DeckCRUDer, ctx context.Context) (GetDeckResponseBody, int, error) {
+func HandleGetDeck(r *http.Request, ps httprouter.Params, dc db.DeckCRUDer, ctx context.Context) (GetDeckResponseBody, int, error) {
 	var (
 		responseBody GetDeckResponseBody
 		resultDeck   db.DeckModel
@@ -105,7 +104,7 @@ func HandleGetDeck(r *http.Request, ps httprouter.Params, dc database.DeckCRUDer
 	return responseBody, http.StatusOK, nil
 }
 
-func HandleDrawCards(r *http.Request, ps httprouter.Params, dc database.DeckCRUDer, ctx context.Context) (DrawCardsResponseBody, int, error) {
+func HandleDrawCards(r *http.Request, ps httprouter.Params, dc db.DeckCRUDer, ctx context.Context) (DrawCardsResponseBody, int, error) {
 	var (
 		reqBody      DrawCardsRequestBody
 		responseBody DrawCardsResponseBody

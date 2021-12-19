@@ -2,13 +2,11 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"net/http"
 	"time"
 
 	"github.com/julienschmidt/httprouter"
-	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -18,22 +16,18 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 	err = client.Connect(ctx)
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer client.Disconnect(ctx)
 
-	dbs, err := client.ListDatabaseNames(ctx, bson.M{})
-	if err != nil {
-		fmt.Println(err)
-	} else {
-		fmt.Println(dbs)
-	}
+	dbClient := client.Database("cardsdb")
 	s := &server{
 		router:   httprouter.New(),
-		dbClient: client,
+		dbClient: dbClient,
 	}
 	s.initRouter()
 	log.Fatal(http.ListenAndServe(":8080", s))

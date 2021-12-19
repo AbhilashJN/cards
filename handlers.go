@@ -16,7 +16,7 @@ type genericResponseMessage struct {
 }
 
 func (s *server) handleCreateDeck(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-	collection := s.dbClient.Database("cardsdb").Collection("decks")
+	collection := s.dbClient.Collection("decks")
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	dc := &database.DeckCRUDOperator{Collection: collection}
@@ -31,7 +31,7 @@ func (s *server) handleCreateDeck(w http.ResponseWriter, r *http.Request, ps htt
 }
 
 func (s *server) handleGetDeck(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-	collection := s.dbClient.Database("cardsdb").Collection("decks")
+	collection := s.dbClient.Collection("decks")
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	dc := &database.DeckCRUDOperator{Collection: collection}
@@ -46,7 +46,7 @@ func (s *server) handleGetDeck(w http.ResponseWriter, r *http.Request, ps httpro
 }
 
 func (s *server) handleDrawCards(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-	collection := s.dbClient.Database("cardsdb").Collection("decks")
+	collection := s.dbClient.Collection("decks")
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 	dc := &database.DeckCRUDOperator{Collection: collection}
