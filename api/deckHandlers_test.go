@@ -10,16 +10,23 @@ import (
 	"testing"
 
 	"github.com/AbhilashJN/cards/database"
+	"github.com/AbhilashJN/cards/deck"
 	"github.com/google/go-cmp/cmp"
 	"github.com/julienschmidt/httprouter"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
 type mockDeckCRUDOperator struct {
-	mockInsertDeckFn func(context.Context, database.DeckModel) error
+	mockInsertDeckFn   func(context.Context, database.DeckModel) error
+	mockFindDeckByUUID func(ctx context.Context, uuid string) (database.DeckModel, error)
 }
 
 func (d *mockDeckCRUDOperator) InsertDeck(ctx context.Context, deckItem database.DeckModel) error {
 	return d.mockInsertDeckFn(ctx, deckItem)
+}
+
+func (d *mockDeckCRUDOperator) FindDeckByUUID(ctx context.Context, uuid string) (database.DeckModel, error) {
+	return d.mockFindDeckByUUID(ctx, uuid)
 }
 
 type HandleCreateDeckTest struct {
@@ -29,10 +36,11 @@ type HandleCreateDeckTest struct {
 	expectedNumCards int
 }
 
+var mdc mockDeckCRUDOperator
+
 func TestHandleCreateDeck(t *testing.T) {
 	mockParams := httprouter.Params{}
 	mockCtx := context.TODO()
-	mdc := mockDeckCRUDOperator{}
 	mdc.mockInsertDeckFn = func(ctx context.Context, d database.DeckModel) error {
 		return nil
 	}
@@ -105,5 +113,76 @@ func TestHandleCreateDeckBadRequest(t *testing.T) {
 	}
 	if responseCode != http.StatusBadRequest {
 		t.Errorf("Failed for error case: expected response code to be %d, got %d", http.StatusBadRequest, responseCode)
+	}
+}
+
+func TestHandleGetDeck(t *testing.T) {
+	mockParams := httprouter.Params{}
+	mockCtx := context.TODO()
+	mockResult := database.DeckModel{
+		UUID:     "test-uuid-123",
+		Shuffled: false,
+		Cards:    deck.Deck{{Value: deck.Ace, Suit: deck.Spades}, {Value: deck.Three, Suit: deck.Clubs}},
+	}
+	mdc := mockDeckCRUDOperator{}
+	mdc.mockFindDeckByUUID = func(ctx context.Context, uuid string) (database.DeckModel, error) {
+		return mockResult, nil
+	}
+
+	req := httptest.NewRequest("GET", "http://www.test.com", bytes.NewReader([]byte{}))
+	expectedResponse := GetDeckResponseBody{
+		DeckId:    "test-uuid-123",
+		Shuffled:  false,
+		Remaining: 2,
+		Cards:     deck.Deck{{Value: deck.Ace, Suit: deck.Spades}, {Value: deck.Three, Suit: deck.Clubs}}.ToDeckJSON(),
+	}
+	response, responseCode, err := HandleGetDeck(req, mockParams, &mdc, mockCtx)
+	if !cmp.Equal(response, expectedResponse) {
+		t.Errorf("Failed for success case: expected respnonse to be %v, got %v", expectedResponse, response)
+	}
+	if responseCode != http.StatusOK {
+		t.Errorf("Failed for success case: expected response code to be %d, got %d", http.StatusOK, responseCode)
+	}
+	if err != nil {
+		t.Errorf("Failed for success case: expected error to be %v, got %d", nil, err)
+	}
+
+}
+
+func TestHandleGetDeckNotFound(t *testing.T) {
+	mockParams := httprouter.Params{}
+	mockCtx := context.TODO()
+	mdc := mockDeckCRUDOperator{}
+	mdc.mockFindDeckByUUID = func(ctx context.Context, uuid string) (database.DeckModel, error) {
+		return database.DeckModel{}, mongo.ErrNoDocuments
+	}
+
+	req := httptest.NewRequest("GET", "http://www.test.com", bytes.NewReader([]byte{}))
+	expectedErr := ApiError{Message: "Deck with this id does not exist"}
+	_, responseCode, err := HandleGetDeck(req, mockParams, &mdc, mockCtx)
+	if !cmp.Equal(err, expectedErr) {
+		t.Errorf("Failed for error case: expected error to be %v, got %v", expectedErr, err)
+	}
+	if responseCode != http.StatusNotFound {
+		t.Errorf("Failed for error case: expected response code to be %d, got %d", http.StatusNotFound, responseCode)
+	}
+}
+
+func TestHandleGetDeckDbError(t *testing.T) {
+	mockParams := httprouter.Params{}
+	mockCtx := context.TODO()
+	mdc := mockDeckCRUDOperator{}
+	mdc.mockFindDeckByUUID = func(ctx context.Context, uuid string) (database.DeckModel, error) {
+		return database.DeckModel{}, errors.New("test error 456")
+	}
+
+	req := httptest.NewRequest("GET", "http://www.test.com", bytes.NewReader([]byte{}))
+	expectedErr := ApiError{Message: "Internal Server Error"}
+	_, responseCode, err := HandleGetDeck(req, mockParams, &mdc, mockCtx)
+	if !cmp.Equal(err, expectedErr) {
+		t.Errorf("Failed for error case: expected error to be %v, got %v", expectedErr, err)
+	}
+	if responseCode != http.StatusInternalServerError {
+		t.Errorf("Failed for error case: expected response code to be %d, got %d", http.StatusInternalServerError, responseCode)
 	}
 }

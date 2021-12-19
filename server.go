@@ -32,4 +32,6 @@ func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func (s *server) initRouter() {
 	s.router.PanicHandler = crashHandler
 	s.router.GET("/status", Status)
+	s.router.POST("/deck", s.handleCreateDeck)
+	s.router.GET("/deck/:uuid", s.handleGetDeck)
 }

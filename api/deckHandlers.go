@@ -11,6 +11,7 @@ import (
 	"github.com/AbhilashJN/cards/deck"
 	"github.com/google/uuid"
 	"github.com/julienschmidt/httprouter"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
 type CreateDeckRequestBody struct {
@@ -78,4 +79,25 @@ func HandleCreateDeck(r *http.Request, ps httprouter.Params, dc database.DeckCRU
 	responseBody.Shuffled = reqBody.Shuffle
 	responseBody.Remaining = len(cards)
 	return responseBody, http.StatusCreated, nil
+}
+
+func HandleGetDeck(r *http.Request, ps httprouter.Params, dc database.DeckCRUDer, ctx context.Context) (GetDeckResponseBody, int, error) {
+	var (
+		responseBody GetDeckResponseBody
+		resultDeck   db.DeckModel
+	)
+	reqUUID := ps.ByName("uuid")
+	resultDeck, err := dc.FindDeckByUUID(ctx, reqUUID)
+	if err == mongo.ErrNoDocuments {
+		return responseBody, http.StatusNotFound, ApiError{Message: "Deck with this id does not exist"}
+	} else if err != nil {
+		log.Println("Error occurred while searching for document in db.", err)
+		return responseBody, http.StatusInternalServerError, ApiError{Message: "Internal Server Error"}
+	}
+
+	responseBody.DeckId = resultDeck.UUID
+	responseBody.Shuffled = resultDeck.Shuffled
+	responseBody.Remaining = len(resultDeck.Cards)
+	responseBody.Cards = resultDeck.Cards.ToDeckJSON()
+	return responseBody, http.StatusOK, nil
 }

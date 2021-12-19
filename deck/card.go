@@ -34,8 +34,8 @@ const (
 )
 
 type Card struct {
-	Value CardValue `json:"value"`
-	Suit  CardSuit  `json:"suit"`
+	Value CardValue `json:"value" bson:"value"`
+	Suit  CardSuit  `json:"suit" bson:"suit"`
 }
 
 type CardJSON struct {

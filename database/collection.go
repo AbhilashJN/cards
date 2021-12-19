@@ -10,4 +10,6 @@ import (
 type MongoCollection interface {
 	InsertOne(context.Context, interface{},
 		...*options.InsertOneOptions) (*mongo.InsertOneResult, error)
+	FindOne(ctx context.Context, filter interface{},
+		opts ...*options.FindOneOptions) *mongo.SingleResult
 }
