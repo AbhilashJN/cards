@@ -9,20 +9,17 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/AbhilashJN/cards/database"
 	"github.com/google/go-cmp/cmp"
 	"github.com/julienschmidt/httprouter"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-type mockMongoCollection struct {
-	mockInsertOne func(context.Context, interface{},
-		...*options.InsertOneOptions) (*mongo.InsertOneResult, error)
+type mockDeckCRUDOperator struct {
+	mockInsertDeckFn func(context.Context, database.DeckModel) error
 }
 
-func (c mockMongoCollection) InsertOne(ctx context.Context, document interface{},
-	opts ...*options.InsertOneOptions) (*mongo.InsertOneResult, error) {
-	return c.mockInsertOne(ctx, document, opts...)
+func (d *mockDeckCRUDOperator) InsertDeck(ctx context.Context, deckItem database.DeckModel) error {
+	return d.mockInsertDeckFn(ctx, deckItem)
 }
 
 type HandleCreateDeckTest struct {
@@ -33,12 +30,11 @@ type HandleCreateDeckTest struct {
 }
 
 func TestHandleCreateDeck(t *testing.T) {
-	collection := mockMongoCollection{}
 	mockParams := httprouter.Params{}
 	mockCtx := context.TODO()
-	collection.mockInsertOne = func(ctx context.Context, document interface{},
-		opts ...*options.InsertOneOptions) (*mongo.InsertOneResult, error) {
-		return &mongo.InsertOneResult{InsertedID: 123}, nil
+	mdc := mockDeckCRUDOperator{}
+	mdc.mockInsertDeckFn = func(ctx context.Context, d database.DeckModel) error {
+		return nil
 	}
 
 	tests := []HandleCreateDeckTest{
@@ -52,7 +48,7 @@ func TestHandleCreateDeck(t *testing.T) {
 	for _, test := range tests {
 		mockBody, _ := json.Marshal(CreateDeckRequestBody{Shuffle: test.shuffle, CustomDeck: test.customDeck, WantedCards: test.wantedCards})
 		req := httptest.NewRequest("POST", "http://www.test.com", bytes.NewReader(mockBody))
-		responseBody, responseCode, err := HandleCreateDeck(req, mockParams, collection, mockCtx)
+		responseBody, responseCode, err := HandleCreateDeck(req, mockParams, &mdc, mockCtx)
 		if err != nil {
 			t.Errorf("Failed for success case: expected err to be %v, got %v", nil, err)
 		}
@@ -73,17 +69,17 @@ func TestHandleCreateDeck(t *testing.T) {
 }
 
 func TestHandleCreateDeckDbError(t *testing.T) {
-	collection := mockMongoCollection{}
 	mockParams := httprouter.Params{}
 	mockCtx := context.TODO()
-	collection.mockInsertOne = func(ctx context.Context, document interface{},
-		opts ...*options.InsertOneOptions) (*mongo.InsertOneResult, error) {
-		return &mongo.InsertOneResult{}, errors.New("test error")
+	mdc := mockDeckCRUDOperator{}
+	mdc.mockInsertDeckFn = func(ctx context.Context, d database.DeckModel) error {
+		return errors.New("Test error 123")
 	}
+
 	mockBody, _ := json.Marshal(CreateDeckRequestBody{Shuffle: false, CustomDeck: false, WantedCards: []string{}})
 	req := httptest.NewRequest("POST", "http://www.test.com", bytes.NewReader(mockBody))
 	expectedErr := ApiError{Message: "Internal Server Error"}
-	_, responseCode, err := HandleCreateDeck(req, mockParams, collection, mockCtx)
+	_, responseCode, err := HandleCreateDeck(req, mockParams, &mdc, mockCtx)
 	if !cmp.Equal(err, expectedErr) {
 		t.Errorf("Failed for error case: expected error to be %v, got %v", expectedErr, err)
 	}
@@ -93,17 +89,17 @@ func TestHandleCreateDeckDbError(t *testing.T) {
 }
 
 func TestHandleCreateDeckBadRequest(t *testing.T) {
-	collection := mockMongoCollection{}
 	mockParams := httprouter.Params{}
 	mockCtx := context.TODO()
-	collection.mockInsertOne = func(ctx context.Context, document interface{},
-		opts ...*options.InsertOneOptions) (*mongo.InsertOneResult, error) {
-		return &mongo.InsertOneResult{InsertedID: 123}, errors.New("test error")
+	mdc := mockDeckCRUDOperator{}
+	mdc.mockInsertDeckFn = func(ctx context.Context, d database.DeckModel) error {
+		return errors.New("Test error 123")
 	}
+
 	mockBody, _ := json.Marshal(CreateDeckRequestBody{Shuffle: false, CustomDeck: false, WantedCards: []string{}})
 	req := httptest.NewRequest("POST", "http://www.test.com", bytes.NewReader(mockBody[:len(mockBody)-2]))
 	expectedErr := ApiError{Message: "Request body is malformed"}
-	_, responseCode, err := HandleCreateDeck(req, mockParams, collection, mockCtx)
+	_, responseCode, err := HandleCreateDeck(req, mockParams, &mdc, mockCtx)
 	if !cmp.Equal(err, expectedErr) {
 		t.Errorf("Failed for error case: expected error to be %v, got %v", expectedErr, err)
 	}

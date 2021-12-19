@@ -8,6 +8,6 @@ import (
 )
 
 type MongoCollection interface {
-	InsertOne(ctx context.Context, document interface{},
-		opts ...*options.InsertOneOptions) (*mongo.InsertOneResult, error)
+	InsertOne(context.Context, interface{},
+		...*options.InsertOneOptions) (*mongo.InsertOneResult, error)
 }

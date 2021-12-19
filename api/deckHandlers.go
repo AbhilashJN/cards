@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/AbhilashJN/cards/database"
 	db "github.com/AbhilashJN/cards/database"
 	"github.com/AbhilashJN/cards/deck"
 	"github.com/google/uuid"
@@ -48,7 +49,7 @@ func (e ApiError) Error() string {
 	return e.Message
 }
 
-func HandleCreateDeck(r *http.Request, ps httprouter.Params, collection db.MongoCollection, ctx context.Context) (CreateDeckResponseBody, int, error) {
+func HandleCreateDeck(r *http.Request, ps httprouter.Params, dc database.DeckCRUDer, ctx context.Context) (CreateDeckResponseBody, int, error) {
 	var (
 		reqBody      CreateDeckRequestBody
 		responseBody CreateDeckResponseBody
@@ -67,7 +68,7 @@ func HandleCreateDeck(r *http.Request, ps httprouter.Params, collection db.Mongo
 	})
 	deckItem := db.DeckModel{UUID: deckId, Cards: cards}
 
-	_, err = collection.InsertOne(ctx, deckItem)
+	err = dc.InsertDeck(ctx, deckItem)
 	if err != nil {
 		log.Println("Error occurred while inserting document into db.", err)
 		return responseBody, http.StatusInternalServerError, ApiError{Message: "Internal Server Error"}
