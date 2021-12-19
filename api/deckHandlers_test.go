@@ -277,6 +277,37 @@ func TestHandleDrawCardsSizeExceededError(t *testing.T) {
 	}
 }
 
+func TestHandleDrawCardsNumberNotGivenError(t *testing.T) {
+	mockParams := httprouter.Params{{Key: "uuid", Value: "test-uuid-1234"}}
+	mockCtx := context.TODO()
+	mdc := mockDeckCRUDOperator{}
+	mockResult := database.DeckModel{
+		UUID:     "test-uuid-123",
+		Shuffled: false,
+		Cards: deck.Deck{
+			{Value: deck.Ace, Suit: deck.Spades},
+			{Value: deck.Three, Suit: deck.Clubs},
+			{Value: deck.Nine, Suit: deck.Hearts},
+		},
+	}
+	mdc.mockFindDeckByUUID = func(ctx context.Context, uuid string) (database.DeckModel, error) {
+		return mockResult, nil
+	}
+	mdc.mockUpdateDeckByUUID = func(ctx context.Context, uuid string, filterQuery bson.D) error {
+		return errors.New("test update error")
+	}
+	mockBody, _ := json.Marshal(struct{}{})
+	req := httptest.NewRequest("PATCH", "http://www.test.com", bytes.NewReader(mockBody))
+	expectedErr := ApiError{Message: "Number of cards must be specified and be greater than 0"}
+	_, responseCode, err := HandleDrawCards(req, mockParams, &mdc, mockCtx)
+	if !cmp.Equal(err, expectedErr) {
+		t.Errorf("Failed for size exceeded error case: expected error to be %v, got %v", expectedErr, err)
+	}
+	if responseCode != http.StatusBadRequest {
+		t.Errorf("Failed for size exceeded error case: expected response code to be %d, got %d", http.StatusBadRequest, responseCode)
+	}
+}
+
 func TestHandleDrawCardsDeckNotFound(t *testing.T) {
 	mockParams := httprouter.Params{{Key: "uuid", Value: "test-uuid-123"}}
 	mockCtx := context.TODO()

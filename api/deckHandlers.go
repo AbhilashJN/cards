@@ -117,6 +117,10 @@ func HandleDrawCards(r *http.Request, ps httprouter.Params, dc database.DeckCRUD
 		log.Println("Error parsing request body", err)
 		return responseBody, http.StatusBadRequest, ApiError{Message: "Request body is malformed"}
 	}
+	if reqBody.NumberOfCards <= 0 {
+		return responseBody, http.StatusBadRequest, ApiError{Message: "Number of cards must be specified and be greater than 0"}
+
+	}
 
 	resultDeck, err = dc.FindDeckByUUID(ctx, reqUUID)
 	if err == mongo.ErrNoDocuments {
