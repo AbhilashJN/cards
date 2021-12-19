@@ -56,20 +56,27 @@ func defaultDeckGenerator() Deck {
 	return newDeck
 }
 
-func customDeckGenerator(cardCodesList []string) Deck {
+func customDeckGenerator(cardCodesList []string) (Deck, error) {
 	numCards := len(cardCodesList)
 	newDeck := make(Deck, numCards)
 	for i, cardCode := range cardCodesList {
-		value, suit := DecodeValueAndSuit(cardCode)
+		value, suit, err := DecodeValueAndSuit(cardCode)
+		if err != nil {
+			return Deck{}, err
+		}
 		newDeck[i] = Card{Suit: suit, Value: value}
 	}
-	return newDeck
+	return newDeck, nil
 }
 
-func New(opts *NewDeckOpts) Deck {
+func New(opts *NewDeckOpts) (Deck, error) {
 	var deck Deck
+	var err error
 	if opts.CustomDeck {
-		deck = customDeckGenerator(opts.CustomDeckCards)
+		deck, err = customDeckGenerator(opts.CustomDeckCards)
+		if err != nil {
+			return deck, err
+		}
 	} else {
 		deck = defaultDeckGenerator()
 	}
@@ -78,5 +85,5 @@ func New(opts *NewDeckOpts) Deck {
 		deck.Shuffle()
 	}
 
-	return deck
+	return deck, nil
 }

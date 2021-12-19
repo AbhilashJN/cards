@@ -1,6 +1,7 @@
 package deck
 
 import (
+	"fmt"
 	"strconv"
 	"strings"
 )
@@ -44,6 +45,14 @@ type CardJSON struct {
 	Code  string `json:"code"`
 }
 
+type ErrInvalidCardCode struct {
+	CardCode string
+}
+
+func (e ErrInvalidCardCode) Error() string {
+	return fmt.Sprintf("Card code %s is invalid", e.CardCode)
+}
+
 func (c Card) ToCardJSON() CardJSON {
 	valueString := strings.ToUpper(c.Value.String())
 	suitString := strings.ToUpper(c.Suit.String())
@@ -56,10 +65,11 @@ func (c Card) ToCardJSON() CardJSON {
 	}
 }
 
-func DecodeValueAndSuit(code string) (CardValue, CardSuit) {
+func DecodeValueAndSuit(code string) (CardValue, CardSuit, error) {
 	var (
-		value CardValue
-		suit  CardSuit
+		value    CardValue
+		suit     CardSuit
+		parseErr error
 	)
 	valueCode := string(code[0])
 	suitCode := string(code[1])
@@ -75,6 +85,8 @@ func DecodeValueAndSuit(code string) (CardValue, CardSuit) {
 			value = Queen
 		case "K":
 			value = King
+		default:
+			parseErr = ErrInvalidCardCode{CardCode: code}
 		}
 	} else {
 		value = CardValue(valueInt)
@@ -90,7 +102,7 @@ func DecodeValueAndSuit(code string) (CardValue, CardSuit) {
 	case "H":
 		suit = Hearts
 	default:
+		parseErr = ErrInvalidCardCode{CardCode: code}
 	}
-
-	return value, suit
+	return value, suit, parseErr
 }

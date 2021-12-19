@@ -64,12 +64,15 @@ func HandleCreateDeck(r *http.Request, ps httprouter.Params, dc db.DeckCRUDer, c
 	}
 
 	deckId := uuid.NewString()
-	cards := deck.New(&deck.NewDeckOpts{
+	cards, err := deck.New(&deck.NewDeckOpts{
 		Shuffle:         reqBody.Shuffle,
 		CustomDeck:      reqBody.CustomDeck,
 		CustomDeckCards: reqBody.WantedCards,
 	})
 	deckItem := db.DeckModel{UUID: deckId, Cards: cards}
+	if err != nil {
+		return responseBody, http.StatusBadRequest, ApiError{Message: err.Error()}
+	}
 
 	err = dc.InsertDeck(ctx, deckItem)
 	if err != nil {

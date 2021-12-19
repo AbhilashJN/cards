@@ -97,7 +97,7 @@ func TestGetDeckIntegration(t *testing.T) {
 		dbClient: dbClient,
 	}
 	s.initRouter()
-	mockDeck := deck.New(&deck.NewDeckOpts{Shuffle: false, CustomDeck: false})
+	mockDeck, _ := deck.New(&deck.NewDeckOpts{Shuffle: false, CustomDeck: false})
 	deckItem := database.DeckModel{
 		UUID:     "test-uuid-12345",
 		Shuffled: false,
@@ -142,7 +142,7 @@ func TestGetDeckIntegrationErrorCase(t *testing.T) {
 		dbClient: dbClient,
 	}
 	s.initRouter()
-	mockDeck := deck.New(&deck.NewDeckOpts{Shuffle: false, CustomDeck: false})
+	mockDeck, _ := deck.New(&deck.NewDeckOpts{Shuffle: false, CustomDeck: false})
 	deckItem := database.DeckModel{
 		UUID:     "test-uuid-12345",
 		Shuffled: false,
@@ -179,7 +179,7 @@ func TestDrawCardsIntegration(t *testing.T) {
 		dbClient: dbClient,
 	}
 	s.initRouter()
-	mockDeck := deck.New(&deck.NewDeckOpts{Shuffle: false, CustomDeck: false})
+	mockDeck, _ := deck.New(&deck.NewDeckOpts{Shuffle: false, CustomDeck: false})
 	deckItem := database.DeckModel{
 		UUID:     "test-uuid-12345",
 		Shuffled: false,
@@ -220,7 +220,7 @@ func TestDrawCardsIntegrationErrorCase(t *testing.T) {
 		dbClient: dbClient,
 	}
 	s.initRouter()
-	mockDeck := deck.New(&deck.NewDeckOpts{Shuffle: false, CustomDeck: false})
+	mockDeck, _ := deck.New(&deck.NewDeckOpts{Shuffle: false, CustomDeck: false})
 	deckItem := database.DeckModel{
 		UUID:     "test-uuid-12345",
 		Shuffled: false,

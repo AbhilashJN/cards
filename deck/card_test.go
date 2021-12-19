@@ -10,6 +10,7 @@ type DecodeValueAndSuitTest struct {
 	input         string
 	expectedValue CardValue
 	expectedSuit  CardSuit
+	expectedErr   error
 }
 
 type CardValueStringerTest struct {
@@ -29,21 +30,25 @@ type ToCardJSONTest struct {
 
 func TestTableDecodeValueAndSuit(t *testing.T) {
 	var tests = []DecodeValueAndSuitTest{
-		{"AS", Ace, Spades},
-		{"3C", Three, Clubs},
-		{"8H", Eight, Hearts},
-		{"QD", Queen, Diamonds},
+		{"AS", Ace, Spades, nil},
+		{"3C", Three, Clubs, nil},
+		{"8H", Eight, Hearts, nil},
+		{"QD", Queen, Diamonds, nil},
+		{"0M", CardValue(0), CardSuit(0), ErrInvalidCardCode{CardCode: "0M"}},
 	}
 
 	for _, test := range tests {
-		value, suit := DecodeValueAndSuit(test.input)
+		value, suit, err := DecodeValueAndSuit(test.input)
 		if value != test.expectedValue {
 			t.Errorf("Failed for input '%s': Expected value to be %v, got %v", test.input, test.expectedValue, value)
 		}
 		if suit != test.expectedSuit {
-			t.Errorf("Failed for input '%s': Expected suit be %v, got %v", test.input, test.expectedSuit, suit)
+			t.Errorf("Failed for input '%s': Expected suit to be %v, got %v", test.input, test.expectedSuit, suit)
 		}
+		if !cmp.Equal(err, test.expectedErr) {
+			t.Errorf("Failed for input '%s': Expected error to be %v, got %v", test.input, test.expectedErr, err)
 
+		}
 	}
 }
 

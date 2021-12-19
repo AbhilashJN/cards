@@ -10,6 +10,7 @@ import (
 type CustomDeckGeneratorTest struct {
 	input          []string
 	expectedOutput Deck
+	expectedErr    error
 }
 
 type ShuffleTest struct {
@@ -33,6 +34,7 @@ type ToDeckJSONTest struct {
 type NewDeckTest struct {
 	inputOpts      NewDeckOpts
 	expectedOutput Deck
+	expectedErr    error
 }
 
 func TestDefaultDeckGenerator(t *testing.T) {
@@ -48,11 +50,13 @@ func TestCustomDeckGenerator(t *testing.T) {
 	tests := []CustomDeckGeneratorTest{
 		{[]string{},
 			Deck{},
+			nil,
 		},
 		{[]string{"KC"},
 			Deck{
 				{Value: King, Suit: Clubs},
 			},
+			nil,
 		},
 		{[]string{"8C", "5H", "QS", "AD", "7S", "3C"},
 			Deck{
@@ -63,13 +67,21 @@ func TestCustomDeckGenerator(t *testing.T) {
 				{Value: Seven, Suit: Spades},
 				{Value: Three, Suit: Clubs},
 			},
+			nil,
+		},
+		{[]string{"8C", "5H", "XY", "AD", "7S", "3C"},
+			Deck{},
+			ErrInvalidCardCode{CardCode: "XY"},
 		},
 	}
 
 	for _, test := range tests {
-		output := customDeckGenerator(test.input)
+		output, err := customDeckGenerator(test.input)
 		if !cmp.Equal(output, test.expectedOutput) {
 			t.Errorf("Failed for input %v: expected %v, got %v", test.input, test.expectedOutput, output)
+		}
+		if !cmp.Equal(err, test.expectedErr) {
+			t.Errorf("Failed for input %v: expected error %v, got %v", test.input, test.expectedErr, err)
 		}
 	}
 
@@ -234,10 +246,12 @@ func TestNewDeck(t *testing.T) {
 		{
 			NewDeckOpts{Shuffle: false, CustomDeck: false, CustomDeckCards: []string{}},
 			getDefaultDeck(),
+			nil,
 		},
 		{
 			NewDeckOpts{Shuffle: true, CustomDeck: false, CustomDeckCards: []string{}},
 			getShuffledDefaultDeck(),
+			nil,
 		},
 		{
 			NewDeckOpts{Shuffle: false, CustomDeck: true, CustomDeckCards: []string{"AS", "QS", "2H", "7D", "4C"}},
@@ -248,6 +262,7 @@ func TestNewDeck(t *testing.T) {
 				{Value: Seven, Suit: Diamonds},
 				{Value: Four, Suit: Clubs},
 			},
+			nil,
 		},
 		{
 			NewDeckOpts{Shuffle: true, CustomDeck: true, CustomDeckCards: []string{"AS", "QS", "2H", "7D", "4C"}},
@@ -258,17 +273,27 @@ func TestNewDeck(t *testing.T) {
 				{Value: Four, Suit: Clubs},
 				{Value: Two, Suit: Hearts},
 			},
+			nil,
+		},
+		{
+			NewDeckOpts{Shuffle: true, CustomDeck: true, CustomDeckCards: []string{"AS", "QS", "2H", "VB", "4C"}},
+			Deck{},
+			ErrInvalidCardCode{CardCode: "VB"},
 		},
 		{
 			NewDeckOpts{Shuffle: false, CustomDeck: false, CustomDeckCards: []string{"AS", "QS", "2H", "7D", "4C"}},
 			getDefaultDeck(),
+			nil,
 		},
 	}
 	rand.Seed(123)
 	for _, test := range tests {
-		output := New(&test.inputOpts)
+		output, err := New(&test.inputOpts)
 		if !cmp.Equal(output, test.expectedOutput) {
 			t.Errorf("Failed for input %v: expected %v, got %v", test.inputOpts, test.expectedOutput, output)
+		}
+		if !cmp.Equal(err, test.expectedErr) {
+			t.Errorf("Failed for input %v: expected error %v, got %v", test.inputOpts, test.expectedErr, err)
 		}
 	}
 	rand.Seed(1)

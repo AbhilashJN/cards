@@ -99,6 +99,24 @@ func TestHandleCreateDeckNoWantedCardsErr(t *testing.T) {
 	}
 }
 
+func TestHandleCreateDeckInvalidCardCodeErr(t *testing.T) {
+	mockParams := httprouter.Params{}
+	mockCtx := context.TODO()
+	mdc.mockInsertDeckFn = func(ctx context.Context, d database.DeckModel) error {
+		return nil
+	}
+	mockBody, _ := json.Marshal(CreateDeckRequestBody{Shuffle: false, CustomDeck: true, WantedCards: []string{"AS", "7H", "ZX"}})
+	req := httptest.NewRequest("POST", "/deck", bytes.NewReader(mockBody))
+	expectedErr := ApiError{Message: "Card code ZX is invalid"}
+	_, responseCode, err := HandleCreateDeck(req, mockParams, &mdc, mockCtx)
+	if !cmp.Equal(err, expectedErr) {
+		t.Errorf("Failed for no wanted cards given error case: expected error to be %v, got %v", expectedErr, err)
+	}
+	if responseCode != http.StatusBadRequest {
+		t.Errorf("Failed for no wanted cards given error case: expected response code to be %d, got %d", http.StatusBadRequest, responseCode)
+	}
+}
+
 func TestHandleCreateDeckDbError(t *testing.T) {
 	mockParams := httprouter.Params{}
 	mockCtx := context.TODO()
