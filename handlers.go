@@ -44,3 +44,18 @@ func (s *server) handleGetDeck(w http.ResponseWriter, r *http.Request, ps httpro
 	}
 	json.NewEncoder(w).Encode(responseBody)
 }
+
+func (s *server) handleDrawCards(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+	collection := s.dbClient.Database("cardsdb").Collection("decks")
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	dc := &database.DeckCRUDOperator{Collection: collection}
+	responseBody, responseCode, err := api.HandleDrawCards(r, ps, dc, ctx)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(responseCode)
+	if err != nil {
+		json.NewEncoder(w).Encode(genericResponseMessage{err.Error()})
+		return
+	}
+	json.NewEncoder(w).Encode(responseBody)
+}

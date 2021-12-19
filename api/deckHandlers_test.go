@@ -13,12 +13,14 @@ import (
 	"github.com/AbhilashJN/cards/deck"
 	"github.com/google/go-cmp/cmp"
 	"github.com/julienschmidt/httprouter"
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
 type mockDeckCRUDOperator struct {
-	mockInsertDeckFn   func(context.Context, database.DeckModel) error
-	mockFindDeckByUUID func(ctx context.Context, uuid string) (database.DeckModel, error)
+	mockInsertDeckFn     func(context.Context, database.DeckModel) error
+	mockFindDeckByUUID   func(ctx context.Context, uuid string) (database.DeckModel, error)
+	mockUpdateDeckByUUID func(context.Context, string, bson.D) error
 }
 
 func (d *mockDeckCRUDOperator) InsertDeck(ctx context.Context, deckItem database.DeckModel) error {
@@ -27,6 +29,10 @@ func (d *mockDeckCRUDOperator) InsertDeck(ctx context.Context, deckItem database
 
 func (d *mockDeckCRUDOperator) FindDeckByUUID(ctx context.Context, uuid string) (database.DeckModel, error) {
 	return d.mockFindDeckByUUID(ctx, uuid)
+}
+
+func (d *mockDeckCRUDOperator) UpdateDeckByUUID(ctx context.Context, uuid string, updateQuery bson.D) error {
+	return d.mockUpdateDeckByUUID(ctx, uuid, updateQuery)
 }
 
 type HandleCreateDeckTest struct {
@@ -89,10 +95,10 @@ func TestHandleCreateDeckDbError(t *testing.T) {
 	expectedErr := ApiError{Message: "Internal Server Error"}
 	_, responseCode, err := HandleCreateDeck(req, mockParams, &mdc, mockCtx)
 	if !cmp.Equal(err, expectedErr) {
-		t.Errorf("Failed for error case: expected error to be %v, got %v", expectedErr, err)
+		t.Errorf("Failed for db write error case: expected error to be %v, got %v", expectedErr, err)
 	}
 	if responseCode != http.StatusInternalServerError {
-		t.Errorf("Failed for error case: expected response code to be %d, got %d", http.StatusInternalServerError, responseCode)
+		t.Errorf("Failed for db write error case: expected response code to be %d, got %d", http.StatusInternalServerError, responseCode)
 	}
 }
 
@@ -109,10 +115,10 @@ func TestHandleCreateDeckBadRequest(t *testing.T) {
 	expectedErr := ApiError{Message: "Request body is malformed"}
 	_, responseCode, err := HandleCreateDeck(req, mockParams, &mdc, mockCtx)
 	if !cmp.Equal(err, expectedErr) {
-		t.Errorf("Failed for error case: expected error to be %v, got %v", expectedErr, err)
+		t.Errorf("Failed for bad request case: expected error to be %v, got %v", expectedErr, err)
 	}
 	if responseCode != http.StatusBadRequest {
-		t.Errorf("Failed for error case: expected response code to be %d, got %d", http.StatusBadRequest, responseCode)
+		t.Errorf("Failed for bad request case: expected response code to be %d, got %d", http.StatusBadRequest, responseCode)
 	}
 }
 
@@ -144,7 +150,7 @@ func TestHandleGetDeck(t *testing.T) {
 		t.Errorf("Failed for success case: expected response code to be %d, got %d", http.StatusOK, responseCode)
 	}
 	if err != nil {
-		t.Errorf("Failed for success case: expected error to be %v, got %d", nil, err)
+		t.Errorf("Failed for success case: expected error to be %v, got %v", nil, err)
 	}
 
 }
@@ -161,10 +167,10 @@ func TestHandleGetDeckNotFound(t *testing.T) {
 	expectedErr := ApiError{Message: "Deck with this id does not exist"}
 	_, responseCode, err := HandleGetDeck(req, mockParams, &mdc, mockCtx)
 	if !cmp.Equal(err, expectedErr) {
-		t.Errorf("Failed for error case: expected error to be %v, got %v", expectedErr, err)
+		t.Errorf("Failed for deck not found case: expected error to be %v, got %v", expectedErr, err)
 	}
 	if responseCode != http.StatusNotFound {
-		t.Errorf("Failed for error case: expected response code to be %d, got %d", http.StatusNotFound, responseCode)
+		t.Errorf("Failed for deck not found case: expected response code to be %d, got %d", http.StatusNotFound, responseCode)
 	}
 }
 
@@ -180,9 +186,151 @@ func TestHandleGetDeckDbError(t *testing.T) {
 	expectedErr := ApiError{Message: "Internal Server Error"}
 	_, responseCode, err := HandleGetDeck(req, mockParams, &mdc, mockCtx)
 	if !cmp.Equal(err, expectedErr) {
-		t.Errorf("Failed for error case: expected error to be %v, got %v", expectedErr, err)
+		t.Errorf("Failed for db read error case: expected error to be %v, got %v", expectedErr, err)
 	}
 	if responseCode != http.StatusInternalServerError {
-		t.Errorf("Failed for error case: expected response code to be %d, got %d", http.StatusInternalServerError, responseCode)
+		t.Errorf("Failed for db read error case: expected response code to be %d, got %d", http.StatusInternalServerError, responseCode)
+	}
+}
+
+func TestHandleDrawCards(t *testing.T) {
+	mockParams := httprouter.Params{}
+	mockCtx := context.TODO()
+	mockResult := database.DeckModel{
+		UUID:     "test-uuid-123",
+		Shuffled: false,
+		Cards: deck.Deck{
+			{Value: deck.Ace, Suit: deck.Spades},
+			{Value: deck.Three, Suit: deck.Clubs},
+			{Value: deck.Nine, Suit: deck.Hearts},
+		},
+	}
+	mdc := mockDeckCRUDOperator{}
+	mdc.mockFindDeckByUUID = func(ctx context.Context, uuid string) (database.DeckModel, error) {
+		return mockResult, nil
+	}
+	mdc.mockUpdateDeckByUUID = func(ctx context.Context, uuid string, filterQuery bson.D) error {
+		return nil
+	}
+	mockBody, _ := json.Marshal(DrawCardsRequestBody{DeckUUID: "test-uuid-123", NumberOfCards: 2})
+	req := httptest.NewRequest("POST", "http://www.test.com", bytes.NewReader(mockBody))
+	expectedResponse := DrawCardsResponseBody{
+		Cards: deck.Deck{{Value: deck.Ace, Suit: deck.Spades}, {Value: deck.Three, Suit: deck.Clubs}}.ToDeckJSON(),
+	}
+	response, responseCode, err := HandleDrawCards(req, mockParams, &mdc, mockCtx)
+	if !cmp.Equal(response, expectedResponse) {
+		t.Errorf("Failed for success case: expected error to be %v, got %v", expectedResponse, response)
+	}
+	if responseCode != http.StatusOK {
+		t.Errorf("Failed for success case: expected response code to be %d, got %d", http.StatusOK, responseCode)
+	}
+	if err != nil {
+		t.Errorf("Failed for success case: expected error to be %v, got %v", nil, err)
+	}
+}
+
+func TestHandleDrawCardsSizeExceededError(t *testing.T) {
+	mockParams := httprouter.Params{}
+	mockCtx := context.TODO()
+	mdc := mockDeckCRUDOperator{}
+	mockResult := database.DeckModel{
+		UUID:     "test-uuid-123",
+		Shuffled: false,
+		Cards: deck.Deck{
+			{Value: deck.Ace, Suit: deck.Spades},
+			{Value: deck.Three, Suit: deck.Clubs},
+			{Value: deck.Nine, Suit: deck.Hearts},
+		},
+	}
+	mdc.mockFindDeckByUUID = func(ctx context.Context, uuid string) (database.DeckModel, error) {
+		return mockResult, nil
+	}
+	mdc.mockUpdateDeckByUUID = func(ctx context.Context, uuid string, filterQuery bson.D) error {
+		return errors.New("test update error")
+	}
+	mockBody, _ := json.Marshal(DrawCardsRequestBody{DeckUUID: "test-uuid-123", NumberOfCards: 4})
+	req := httptest.NewRequest("POST", "http://www.test.com", bytes.NewReader(mockBody))
+	expectedErr := ApiError{Message: "Requested number of cards is greater than the cards remaining in the deck"}
+	_, responseCode, err := HandleDrawCards(req, mockParams, &mdc, mockCtx)
+	if !cmp.Equal(err, expectedErr) {
+		t.Errorf("Failed for size exceeded error case: expected error to be %v, got %v", expectedErr, err)
+	}
+	if responseCode != http.StatusBadRequest {
+		t.Errorf("Failed for size exceeded error case: expected response code to be %d, got %d", http.StatusBadRequest, responseCode)
+	}
+}
+
+func TestHandleDrawCardsDeckNotFound(t *testing.T) {
+	mockParams := httprouter.Params{}
+	mockCtx := context.TODO()
+	mdc := mockDeckCRUDOperator{}
+	mdc.mockFindDeckByUUID = func(ctx context.Context, uuid string) (database.DeckModel, error) {
+		return database.DeckModel{}, mongo.ErrNoDocuments
+	}
+	mdc.mockUpdateDeckByUUID = func(ctx context.Context, uuid string, filterQuery bson.D) error {
+		return nil
+	}
+	mockBody, _ := json.Marshal(DrawCardsRequestBody{DeckUUID: "test-uuid-123", NumberOfCards: 2})
+	req := httptest.NewRequest("POST", "http://www.test.com", bytes.NewReader(mockBody))
+	expectedErr := ApiError{Message: "Deck with this id does not exist"}
+	_, responseCode, err := HandleDrawCards(req, mockParams, &mdc, mockCtx)
+	if !cmp.Equal(err, expectedErr) {
+		t.Errorf("Failed for deck not found case: expected error to be %v, got %v", expectedErr, err)
+	}
+	if responseCode != http.StatusNotFound {
+		t.Errorf("Failed for deck not found case: expected response code to be %d, got %d", http.StatusNotFound, responseCode)
+	}
+}
+
+func TestHandleDrawCardsDbReadError(t *testing.T) {
+	mockParams := httprouter.Params{}
+	mockCtx := context.TODO()
+	mdc := mockDeckCRUDOperator{}
+	mdc.mockFindDeckByUUID = func(ctx context.Context, uuid string) (database.DeckModel, error) {
+		return database.DeckModel{}, errors.New("test error 456")
+	}
+	mdc.mockUpdateDeckByUUID = func(ctx context.Context, uuid string, filterQuery bson.D) error {
+		return nil
+	}
+	mockBody, _ := json.Marshal(DrawCardsRequestBody{DeckUUID: "test-uuid-123", NumberOfCards: 2})
+	req := httptest.NewRequest("POST", "http://www.test.com", bytes.NewReader(mockBody))
+	expectedErr := ApiError{Message: "Internal Server Error"}
+	_, responseCode, err := HandleDrawCards(req, mockParams, &mdc, mockCtx)
+	if !cmp.Equal(err, expectedErr) {
+		t.Errorf("Failed for db read error case: expected error to be %v, got %v", expectedErr, err)
+	}
+	if responseCode != http.StatusInternalServerError {
+		t.Errorf("Failed for db read error case: expected response code to be %d, got %d", http.StatusInternalServerError, responseCode)
+	}
+}
+
+func TestHandleDrawCardsDbUpdateError(t *testing.T) {
+	mockParams := httprouter.Params{}
+	mockCtx := context.TODO()
+	mdc := mockDeckCRUDOperator{}
+	mockResult := database.DeckModel{
+		UUID:     "test-uuid-123",
+		Shuffled: false,
+		Cards: deck.Deck{
+			{Value: deck.Ace, Suit: deck.Spades},
+			{Value: deck.Three, Suit: deck.Clubs},
+			{Value: deck.Nine, Suit: deck.Hearts},
+		},
+	}
+	mdc.mockFindDeckByUUID = func(ctx context.Context, uuid string) (database.DeckModel, error) {
+		return mockResult, nil
+	}
+	mdc.mockUpdateDeckByUUID = func(ctx context.Context, uuid string, filterQuery bson.D) error {
+		return errors.New("test update error")
+	}
+	mockBody, _ := json.Marshal(DrawCardsRequestBody{DeckUUID: "test-uuid-123", NumberOfCards: 2})
+	req := httptest.NewRequest("POST", "http://www.test.com", bytes.NewReader(mockBody))
+	expectedErr := ApiError{Message: "Internal Server Error"}
+	_, responseCode, err := HandleDrawCards(req, mockParams, &mdc, mockCtx)
+	if !cmp.Equal(err, expectedErr) {
+		t.Errorf("Failed for db update error case: expected error to be %v, got %v", expectedErr, err)
+	}
+	if responseCode != http.StatusInternalServerError {
+		t.Errorf("Failed for db update error case: expected response code to be %d, got %d", http.StatusInternalServerError, responseCode)
 	}
 }

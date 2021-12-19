@@ -18,7 +18,7 @@ type ErrDrawCardsSizeExceeded struct {
 }
 
 func (e ErrDrawCardsSizeExceeded) Error() string {
-	return "requested number of cards is greater than the cards remaining in the deck"
+	return "Requested number of cards is greater than the cards remaining in the deck"
 }
 
 func (d Deck) ToDeckJSON() DeckJSON {

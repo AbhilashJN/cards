@@ -16,6 +16,7 @@ type DeckModel struct {
 type DeckCRUDer interface {
 	InsertDeck(context.Context, DeckModel) error
 	FindDeckByUUID(context.Context, string) (DeckModel, error)
+	UpdateDeckByUUID(context.Context, string, bson.D) error
 }
 
 type DeckCRUDOperator struct {
@@ -32,4 +33,9 @@ func (d *DeckCRUDOperator) FindDeckByUUID(ctx context.Context, uuid string) (Dec
 	filterByUUID := bson.D{{Key: "uuid", Value: uuid}}
 	err := d.Collection.FindOne(ctx, filterByUUID).Decode(&resultDeck)
 	return resultDeck, err
+}
+
+func (d *DeckCRUDOperator) UpdateDeckByUUID(ctx context.Context, uuid string, updateQuery bson.D) error {
+	_, err := d.Collection.UpdateOne(ctx, bson.D{{Key: "uuid", Value: uuid}}, updateQuery)
+	return err
 }

@@ -11,6 +11,7 @@ import (
 	"github.com/AbhilashJN/cards/deck"
 	"github.com/google/uuid"
 	"github.com/julienschmidt/httprouter"
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
@@ -99,5 +100,41 @@ func HandleGetDeck(r *http.Request, ps httprouter.Params, dc database.DeckCRUDer
 	responseBody.Shuffled = resultDeck.Shuffled
 	responseBody.Remaining = len(resultDeck.Cards)
 	responseBody.Cards = resultDeck.Cards.ToDeckJSON()
+	return responseBody, http.StatusOK, nil
+}
+
+func HandleDrawCards(r *http.Request, ps httprouter.Params, dc database.DeckCRUDer, ctx context.Context) (DrawCardsResponseBody, int, error) {
+	var (
+		reqBody      DrawCardsRequestBody
+		responseBody DrawCardsResponseBody
+		resultDeck   db.DeckModel
+	)
+
+	err := json.NewDecoder(r.Body).Decode(&reqBody)
+	if err != nil {
+		log.Println("Error parsing request body", err)
+		return responseBody, http.StatusBadRequest, ApiError{Message: "Request body is malformed"}
+	}
+
+	resultDeck, err = dc.FindDeckByUUID(ctx, reqBody.DeckUUID)
+	if err == mongo.ErrNoDocuments {
+		return responseBody, http.StatusNotFound, ApiError{Message: "Deck with this id does not exist"}
+	} else if err != nil {
+		log.Println("Error occurred while searching for document in db.", err)
+		return responseBody, http.StatusInternalServerError, ApiError{Message: "Internal Server Error"}
+	}
+
+	drawnCards, remainingCards, err := deck.DrawCards(resultDeck.Cards, reqBody.NumberOfCards)
+	if err != nil {
+		return responseBody, http.StatusBadRequest, ApiError{Message: err.Error()}
+	}
+	updateQuery := bson.D{{Key: "$set", Value: bson.D{{Key: "cards", Value: remainingCards}}}}
+	err = dc.UpdateDeckByUUID(ctx, reqBody.DeckUUID, updateQuery)
+	if err != nil {
+		log.Println("Error occurred while updating document in db.", err)
+		return responseBody, http.StatusInternalServerError, ApiError{Message: "Internal Server Error"}
+	}
+
+	responseBody.Cards = drawnCards.ToDeckJSON()
 	return responseBody, http.StatusOK, nil
 }
